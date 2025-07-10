@@ -15,7 +15,7 @@ This package tests proper handling when placing eSIM orders via the Airalo API.
 The package contains 2 files:
 
 1. **`api_access.json`**  
-   Contains API credentials and other input data needed for the test:
+   JSON file that contains API credentials and other input data needed for the test:
    - `"client_id"`: Client ID for API  
    - `"client_secret"`: Client secret for API  
    - `"timeout"`: Timeout for API request, normally 10 seconds  
