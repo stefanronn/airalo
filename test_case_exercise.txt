@@ -1,0 +1,199 @@
+Task 2: Test case Exercise
+--------------------------
+
+1.	HLR/HSS Integration Test Cases: Develop five test cases, each with a title and a brief description, to verify the integration between the Home Location Register (HLR) and the Home Subscriber Server (HSS).
+
+TC 1) Manual insert in HLR, sync to HSS
+Description: Manually create a subscriber record in the HLR and verify that 
+it is replicated to the HSS within the defined replication window.
+
+TC 2) Manual insert in HSS, sync to HLR
+Description: Manually create a subscriber record in the HSS and verify that 
+it is replicated to the HLR within the defined replication window.
+
+TC 3) Network-triggered update in HLR, sync to HSS
+Description: Generate a network-triggered subscriber update processed first 
+by the HLR (e.g., location update) and confirm that the change propagates to the HSS.
+
+TC 4) Network-triggered update in HSS, sync to HLR
+Description: Generate a network-triggered subscriber update processed first 
+by the HSS (e.g., Diameter Cx interaction) and confirm that the change propagates to the HLR.
+
+TC 5) Inter-network call flow using HLR/HSS
+Description: Place a call or SMS that requires look-ups in both the HLR (MAP/SS7) 
+and HSS (Diameter) and verify consistent subscriber data retrieval from both databases.
+
+
+
+
+2.	Detailed Test Case Elaboration: Choose one of the five test cases from the previous section and provide a comprehensive description. This detailed description should include all necessary steps and considerations for its execution.
+
+TC 5) Inter-network call flow using HLR/HSS
+-------------------------------------------
+
+Objective:
+Verify that an inter-network mobile-terminated voice call *and* SMS
+complete successfully when subscriber information is fetched from
+both the HLR (MAP/SS7) and the HSS (Diameter), and that the data
+returned by each database is identical.
+
+Pre-conditions:
+1. Test subscriber
+     IMSI   : 001010000012345
+     MSISDN : +46 70 100 1234
+   exists in BOTH HLR and HSS with identical profile
+   (voice + SMS enabled, no barring).
+2. MAP (SS7) and Diameter (Cx/S6a) signalling links are operational.
+3. Replication queue HLR ↔ HSS is empty; last sync < 5 min ago.
+4. Calling party in another PLMN:
+     IMSI   : 001010999999999
+     MSISDN : +46 73 900 0000
+5. Test handsets powered on and registered.
+
+Test steps:
+1. Baseline audit
+   a. Query HLR via OSS:      readSub 001010000012345
+   b. Query HSS via REST/CLI: GET /subscribers/001010000012345
+   c. Confirm IMSI, MSISDN, service flags match exactly.
+2. Mobile-terminated voice call
+   a. From calling handset, dial +46 70 100 1234.
+   b. Trace signalling:
+        - MAP  SRI-for-CS-Call / PRN toward HLR
+        - Diameter LIR/LIA or ULR/ULA toward HSS
+   c. Answer call on test handset, keep 10 s, then release.
+3. Mobile-terminated SMS
+   a. From calling handset, send text “TC5-SMS” to +46 70 100 1234.
+   b. Trace MAP SRI-SM, MT-FW-SM and corresponding Diameter look-ups.
+4. Post-call audit
+   a. Re-query HLR & HSS; verify no unintended profile changes.
+   b. Check CDRs / logs for errors or mismatches.
+
+Expected results:
+- HLR and HSS return identical subscriber data (location, state,
+  service flags) during all look-ups.
+- MAP and Diameter transactions complete with *result = success*,
+  no error codes.
+- Voice call is established with two-way audio.
+- SMS “TC5-SMS” is delivered to test handset.
+- No alarms or replication inconsistencies are logged.
+
+PASS/FAIL criteria:
+PASS  = All expected results are met.
+FAIL  = Any mismatch, error code, unsuccessful call/SMS,
+        or replicated-data inconsistency.
+
+Cleanup
+- End any active sessions.
+- Archive signalling traces and test logs.
+- Remove test subscriber from HLR & HSS if required by lab policy.
+
+
+3.	Roaming Registration Failure Troubleshooting: Describe your troubleshooting methodology and identify potential causes for an eSIM card failing to register on the network during roaming tests.
+
+ROAMING REGISTRATION FAILURE – TROUBLESHOOTING SHORTLIST
+--------------------------------------------------------
+
+a. INITIAL TRIAGE
+   • Confirm eSIM profile is installed/active on the handset (ICCID matches order).  
+   • Check handset shows signal on *home* network before roaming.  
+   • Verify roaming is allowed in HLR/HSS: “roamingRestricted = FALSE”.  
+   • Ensure subscriber still has quota/credit (OCS or billing system).
+
+b. AIR INTERFACE & COVERAGE
+   • Manual-search the bands used in the visited PLMN; verify at least one signal is ≥-100 dBm.  
+   • Disable 5G/NR temporarily → fall back to LTE/3G to rule out band-specific issues.  
+   • Try a second device if possible (rules out handset RF fault).
+
+c. NETWORK SELECTION & AUTHENTICATION
+   • Force manual PLMN selection to the preferred roaming partner.  
+   • Observe attach on radio trace:  
+     – IMSI Attach? → authentication rejected?  
+     – EMM cause codes 11/13/15 = roaming not allowed.  
+   • If authentication fails, pull HSS/UDR entry and confirm K/OPc matches eSIM profile.
+
+d. DIAMETER / SS7 CORE CHECKS
+   • Check S6a/S6d / MAP UpdateLocation; look for “roaming not allowed” or MAP error 13.  
+   • Monitor Gx/Gy: Result-Code 4010 indicates policy server denied service.  
+   • Verify STP/DRA has correct roaming GT routing; no loop or translation miss.
+
+e. POLICY & BARRING
+   • Confirm PCRF/PCF profile does not bar the APN in visited country.  
+   • Verify IMEI is not in EIR black list.  
+   • Check CAMEL/WIN controls; prepaid balance exhaustion blocks attach in many networks.
+
+f. SIM / PROFILE INTEGRITY
+   • Dump EF-PLMNwACT / EF-OPLMNwACT → ensure visited PLMN not explicitly barred.  
+   • Re-download / re-enable the eSIM profile; corrupted profile can fail AKA.
+
+g. COMMON CAUSES
+   • No commercial roaming agreement for that PLMN or technology (e.g., LTE-only).  
+   • Roaming flag disabled in subscriber profile.  
+   • Billing/credit exhaustion → OCS returns “OUT_OF_CREDIT”.  
+   • ICCID/IMSI mismatch between eSIM profile and HLR entry.  
+   • Incorrect or missing APN configuration pushed to device.  
+   • Visited network using unsupported authentication algorithm (e.g., MILENAGE vs COMP128).  
+   • STP/DRA mis-routing UpdateLocation / CancelLocation messages.  
+   • Device forced to 5 GHz NR band not supported by visited network.  
+
+
+
+4.	Roaming Data Traffic Failure Troubleshooting: Outline your troubleshooting steps and potential causes when an eSIM card successfully registers on a roaming network but experiences a failure in data traffic.
+
+ROAMING DATA TRAFFIC FAILURE – TROUBLESHOOTING SHORTLIST
+--------------------------------------------------------
+
+Assumption: UE attaches & registers on visited PLMN, but no user-plane data flows.
+
+a. BASIC DEVICE & APN CHECK
+   • Confirm “Data Roaming” toggle is ON and correct APN is selected.  
+   • Verify UE obtained a PDP/PDN address (ip addr / “Cellular Data Network”).  
+   • Ping default-gw (PGW GTP/UP IP) from UE’s diagnostics if possible.
+
+b. SESSION CONTROL PATH
+   • MME/SGSN logs: EPS bearer activation accepted?  Cause #29/38 → APN denied.  
+   • GTP-C trace V-SGSN → V-PGW: Create Session / Modify Bearer succeeded?  
+   • Check MT-PGW ↔ H-PGW (S8) for F-TEID mismatch or “NO_RESOURCES”.
+
+c. POLICY / CHARGING INTERFACE
+   • Gx CCA: Result-Code 4012/4010 or missing PCC rules will block data.  
+   • Gy/Ro OCS: OUT_OF_CREDIT → PGW silently drops packets.  
+   • PCRF might install “REDIRECT” rule → verify no captive portal.
+
+d. USER-PLANE PATH & FIREWALLS
+   • GTP-U ping (echo) across S1-U / S8 / SGi; check encaps MTU <1400.  
+   • Check roaming GRX/IPX firewall for dropped UDP-2152 or ICMP blocked.  
+   • Verify NAT/pool on PGW has free public IP and correct route back to IPX.
+
+e. DNS & INTERNET TEST
+   • nslookup from UE → visited DNS?  If DNS fails, data appears down.  
+   • HTTP probe to http://example.com: do SYN packets leave SGi?  Use span/pcap.
+
+f. COMMON ROOT CAUSES
+   • APN not whitelisted for roaming in HSS / PCRF.  
+   • OCS credit exhausted after attach; service bar hits first data packet.  
+   • Visited PGW assigns private IP but SGi firewall expects public range.  
+   • GTP-U blocked or mis-NATed in IPX/GRX firewall.  
+   • Mismatch in QoS / TFT causes PGW to drop UL/DL.  
+   • MTU >1500 after double tunnelling → fragmentation disabled upstream.  
+   • DNS unreachable due to blocked UDP/53 in IPX filtering.  
+   • IMEI in EIR “data barred” list (voice/SMS allowed).  
+   • PGW billing interface down → real-time charging forces data drop.  
+
+
+5.	Please analyze the attached Diameter captures (port 3878) (failure3878.pcap) and provide answers to the following:
+Identify the network elements involved in this scenario.
+Answer: PCEF and PCRF
+
+Specify the protocol being utilized.
+Answer: Diameter
+
+Explain the purpose of this protocol.
+Answer: Diameter is used for Authentication, Authorization and Accounting (AAA) in IP networks.
+It was designed to overcome functional and security limits of its predecessor, RADIUS
+
+Determine the evident reason for the failure in this scenario.
+Answer: The PCRF answers the PCEF’s Credit-Control-Request (INITIAL) with
+Diameter Result-Code = 4010 — DIAMETER_END_USER_SERVICE_DENIED 
+(Subscriber is barred / out of credit. No policy rules will be issued.)
+
+
