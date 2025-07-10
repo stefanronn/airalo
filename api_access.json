@@ -1,0 +1,16 @@
+{
+	"client_id"              : "dummy",
+	"client_secret"          : "dummy",
+	"timeout"                : 10,
+	"token_url"              : "https://sandbox-partners-api.airalo.com/v2/token",
+	"balance_url"            : "https://sandbox-partners-api.airalo.com/v2/balance",
+	"esim_order_url"         : "https://sandbox-partners-api.airalo.com/v2/orders",
+	"esim_list_url"          : "https://sandbox-partners-api.airalo.com/v2/sims",
+	"pkg_id"                 : "merhaba-7days-1gb",
+	"qty"                    : 6,
+	"created_at"             : "2025-07-09",
+	"client_token"           : "dummy"
+}
+
+
+
