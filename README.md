@@ -29,4 +29,5 @@ The package contains 2 files:
    - `"client_token"`: Token for API requests. If not a valid token, the token test will fail and a new token will be fetched.
 
 2. **`process_esims.py`**  
-   Python script that executes the testing steps outlined above. Input is fetched from the `api_access.json` file.
+   Python script that executes the testing steps outlined above. Input is fetched from the `api_access.json` file, placed in the same directory
+   as the script itself.
